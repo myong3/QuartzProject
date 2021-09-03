@@ -42,7 +42,7 @@ namespace WebApplication4.Job
 
             
             var ip = new List<string>() { "8.8.8.8" };
-            var isLife = await _quartzHostedService.PingHost(ip);
+            var isLife = await _quartzHostedService.PingHost();
 
             if (isLife)
             {

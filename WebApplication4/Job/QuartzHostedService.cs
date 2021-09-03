@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Spi;
@@ -24,6 +25,7 @@ namespace WebApplication4.Job
 
         private List<JobSchedule> _allJobSchedules;
 
+        private readonly IConfiguration _configuration;
 
 
         public IScheduler Scheduler { get; set; }
@@ -32,12 +34,13 @@ namespace WebApplication4.Job
 
 
 
-        public QuartzHostedService(ILogger<QuartzHostedService> logger, ISchedulerFactory schedulerFactory, IJobFactory jobFactory, IEnumerable<JobSchedule> jobSchedules)
+        public QuartzHostedService(ILogger<QuartzHostedService> logger, ISchedulerFactory schedulerFactory, IJobFactory jobFactory, IEnumerable<JobSchedule> jobSchedules, IConfiguration configuration)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _schedulerFactory = schedulerFactory ?? throw new ArgumentNullException(nameof(schedulerFactory));
             _jobFactory = jobFactory ?? throw new ArgumentNullException(nameof(jobFactory));
             _injectJobSchedules = jobSchedules ?? throw new ArgumentNullException(nameof(jobSchedules));
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
 
@@ -151,8 +154,10 @@ namespace WebApplication4.Job
             }
         }
 
-        public async Task<bool> PingHost(List<string> addressList)
+        public async Task<bool> PingHost()
         {
+            List<string> addressList = string.IsNullOrEmpty(_configuration["ReplyHost:CheckIP"]) ? new List<string>() : _configuration["ReplyHost:CheckIP"].Split(';').ToList();
+
             bool pingable = false;
             Ping pinger = null;
 
