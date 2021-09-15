@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 namespace WebApplication4.Job
 {
     [DisallowConcurrentExecution]
-    public class TestJob : IJob
+    public class TestJob2 : IJob
     {
-        private readonly ILogger<TestJob> _logger;
+        private readonly ILogger<TestJob2> _logger;
 
         private readonly IServiceProvider _provider;
 
@@ -19,7 +19,7 @@ namespace WebApplication4.Job
 
         private int a=0;
 
-        public TestJob(ILogger<TestJob> logger, IServiceProvider provider, QuartzHostedService quartzHostedService)
+        public TestJob2(ILogger<TestJob2> logger, IServiceProvider provider, QuartzHostedService quartzHostedService)
         {
             _provider = provider ?? throw new ArgumentNullException(nameof(provider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));

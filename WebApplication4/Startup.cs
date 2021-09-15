@@ -35,10 +35,11 @@ namespace WebApplication4
 
             //向DI容器註冊Job
             services.AddSingleton<TestJob>();
+            services.AddSingleton<TestJob2>();
 
             //向DI容器註冊JobSchedule
-            services.AddSingleton(new JobSchedule(jobName: "111", jobType: typeof(TestJob), cronExpression: "0/30 * * * * ?"));
-            services.AddSingleton(new JobSchedule(jobName: "222", jobType: typeof(TestJob), cronExpression: "0/52 * * * * ?"));
+            //services.AddSingleton(new JobSchedule(jobName: "111", jobType: typeof(TestJob));
+            //services.AddSingleton(new JobSchedule(jobName: "222", jobType: typeof(TestJob));
 
             //向DI容器註冊Host服務
             services.AddSingleton<QuartzHostedService>();

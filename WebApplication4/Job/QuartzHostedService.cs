@@ -5,6 +5,7 @@ using Quartz;
 using Quartz.Spi;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Threading;
@@ -25,8 +26,11 @@ namespace WebApplication4.Job
 
         private List<JobSchedule> _allJobSchedules;
 
+        private List<TriggerKey> _allTriggerKeys;
+
         private readonly IConfiguration _configuration;
 
+        private bool a = true;
 
         public IScheduler Scheduler { get; set; }
 
@@ -62,19 +66,20 @@ namespace WebApplication4.Job
                 _allJobSchedules.AddRange(_injectJobSchedules);
 
                 // 再模擬動態加入新 Job 項目 (e.g. 從 DB 來的，針對不同報表能動態決定產出時機)
-                _allJobSchedules.Add(new JobSchedule(jobName: "333", jobType: typeof(TestJob), cronExpression: "0/13 * * * * ?"));
-                _allJobSchedules.Add(new JobSchedule(jobName: "444", jobType: typeof(TestJob), cronExpression: "0/20 * * * * ?"));
+                _allJobSchedules.Add(new JobSchedule(jobName: "1111", jobType: typeof(TestJob), cronExpression: "0/10 * * * * ?"));
+                _allJobSchedules.Add(new JobSchedule(jobName: "2222", jobType: typeof(TestJob2), cronExpression: "0/7 * * * * ?"));
 
                 // 初始排程器 Scheduler
                 Scheduler = await _schedulerFactory.GetScheduler(cancellationToken);
                 Scheduler.JobFactory = _jobFactory;
 
-
+                _allTriggerKeys = new List<TriggerKey>();
                 // 逐一將工作項目加入排程器中 
                 foreach (var jobSchedule in _allJobSchedules)
                 {
                     var jobDetail = CreateJobDetail(jobSchedule);
                     var trigger = CreateTrigger(jobSchedule);
+                    _allTriggerKeys.Add(trigger.Key);
                     await Scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
                     jobSchedule.JobStatus = JobStatus.Scheduled;
                 }
@@ -151,6 +156,50 @@ namespace WebApplication4.Job
                     await Scheduler.Interrupt(new JobKey(jobName));
                 }
 
+            }
+        }
+
+        /// <summary>
+        /// 重設排程器(取cousl KV)
+        /// </summary>
+        public async Task ResetTriggerTimeAsync(List<IJob> jobs, ServiceJobType serviceJobType)
+        {
+            if (Scheduler != null && !Scheduler.IsShutdown)
+            {
+                _logger.LogInformation($"@{DateTime.Now:HH:mm:ss} - Scheduler StopAsync");
+
+                await Scheduler.Standby();
+                await Scheduler.UnscheduleJobs(_allTriggerKeys);
+
+                // 先加入在 startup 註冊注入的 Job 工作
+                _allJobSchedules = new List<JobSchedule>();
+
+                foreach (var job in jobs)
+                {
+                    var jobtype = job.GetType();
+                    var jobName = jobtype.Name;
+
+                    var TriggerTimes = _configuration[$"{serviceJobType}Jobs:{jobName}"];
+
+                    foreach (var item in TriggerTimes.Split(';').ToList().Select((value, index) => new { value, index }))
+                    {
+                        _allJobSchedules.Add(new JobSchedule(jobName: $"{jobName}-{item.index + 1}", jobType: jobtype, cronExpression: item.value));
+                    }
+                }
+
+                _allTriggerKeys = new List<TriggerKey>();
+
+                // 逐一將工作項目加入排程器中 
+                foreach (var jobSchedule in _allJobSchedules)
+                {
+                    var jobDetail = CreateJobDetail(jobSchedule);
+                    var trigger = CreateTrigger(jobSchedule);
+                    _allTriggerKeys.Add(trigger.Key);
+                    await Scheduler.ScheduleJob(jobDetail, trigger, CancellationToken);
+                    jobSchedule.JobStatus = JobStatus.Scheduled;
+                }
+                // 啟動排程
+                await Scheduler.Start(CancellationToken);
             }
         }
 
@@ -232,6 +281,18 @@ namespace WebApplication4.Job
                 .WithCronSchedule(schedule.CronExpression)
                 .WithDescription(schedule.CronExpression)
                 .Build();
+        }
+
+        public enum ServiceJobType
+        {
+            [Description("AccountService")]
+            AccountService = 0,
+            [Description("EPostService")]
+            EPostService = 1,
+            [Description("PaymentService")]
+            PaymentService = 2,
+            [Description("TransferService")]
+            TransferService = 3,
         }
     }
 }
